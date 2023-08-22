@@ -35,7 +35,10 @@ const connection = mongoose
   });
 
 app.use("/api/session/", sessionRoutes);
-app.use("/api/users/", usersRoutes);
+app.use("/api/users/", userRoutes);
+app.use(async (err, req, res, next) => {
+  console.log(`COLOCAR AQUI MDW GLOBAL DE ERRORES!!!`);
+});
 
 app.listen(PORT, () => {
   displayRoutes(app);

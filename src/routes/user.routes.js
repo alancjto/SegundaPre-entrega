@@ -1,67 +1,61 @@
-const { Router } = require("express");
-const userModel = require("../model/user.model");
-const isValidMongoId = require("../middleware/is-valid-mongo-id.middleware");
-const handlePolicies = require("../middleware/handle-policies.middleware");
+import { Router } from "express";
+import { generateUser } from "../utils/generate-users.js";
+import { EnumErrors, HttpResponse } from "../middleware/error-handler.js";
 
 const router = Router();
 
-router.get("/", handlePolicies(["ADMIN", "USER"]), async (req, res) => {
-  const users = await userModel.find({});
-  return res.json({ message: `getAllUsers`, users });
+const httpResp = new HttpResponse();
+
+router.get("/", async (req, res) => {
+  try {
+    let users = [];
+    for (let index = 0; index < 100; index++) {
+      users.push(generateUser());
+    }
+
+    return httpResp.OK(res, `generated users`, users);
+  } catch (error) {
+    return httpResp.Error(
+      res,
+      `Something wrong happens generating users`,
+      error?.message
+    );
+  }
 });
 
-router.get(
-  "/:uId",
-  [isValidMongoId("uId"), handlePolicies(["ADMIN", "USER"])],
-  async (req, res) => {
-    const { uId } = req.params;
-    const userData = await userModel
-      .findById({ _id: uId })
-      .populate("notes.note");
-
-    return res.json({ message: ` getUserById `, user: userData });
-  }
-);
-
-// TODO: Actualiar usuario
-router.put("/:uId", isValidMongoId, async (req, res) => {});
-
-router.delete(
-  "/:uId",
-  [isValidMongoId, handlePolicies(["ADMIN"])],
-  async (req, res) => {
-    const { uId } = req.params;
-    const userDel = await userModel.deleteOne({ _id: uId });
-
-    if (!userDel.deletedCount) {
-      return res.status(404).json({ message: `doesn't exist this user` });
+router.get("/:uid", async (req, res) => {
+  try {
+    const { uid } = req.params;
+    if (!uid || isNaN(uid) || uid < 0) {
+      return httpResp.BadRequest(
+        res,
+        `${EnumErrors.INVALID_PARAMS} - Invalid Params for userId `,
+        req.params
+      );
     }
 
     return res.json({
-      message: `user delete sucessfully ${uId}`,
+      message: `generate users`,
+      user: { name: "mock data" },
     });
+  } catch (error) {
+    return httpResp.Error(res, `something wrong happens`, error.message);
   }
-);
+});
 
-// RELACIONANDO NOTAS CON UN USUARIO
-router.post(
-  "/:uId/notes/:noteId",
-  [isValidMongoId("uId"), isValidMongoId("noteId"), handlePolicies(["ADMIN"])],
-  async (req, res) => {
-    const { uId, noteId } = req.params;
-    const userData = await userModel.findById({ _id: uId });
-    console.log("🚀 ~ file: user.routes.js:43 ~ userData:", userData);
-
-    userData.notes.push({ note: noteId });
-
-    const updateUserNote = await userModel.updateOne({ _id: uId }, userData);
-    console.log(
-      "🚀 ~ file: user.routes.js:48 ~ updateUserNote:",
-      updateUserNote
-    );
-
-    return res.json({ message: `nota relacionada exitosamente` });
+router.post("/", async (req, res, next) => {
+  try {
+    const { name } = req.body;
+    // TODO: DESCOMENTAR
+    if (!name) {
+      return httpResp.BadRequest(res, `missing name in body`);
+    }
+    // throw new Error(EnumErrors.DATABASE_ERROR);
+    return httpResp.OK(res, `created users`, { name: `fake user` });
+  } catch (error) {
+    console.log("🚀 ~ file: user.routes.js:32 ~ router.post ~ error:", error);
+    return httpResp.Error(res, `something wrong happens`, error.message);
   }
-);
+});
 
-module.exports = router;
+export default router;
